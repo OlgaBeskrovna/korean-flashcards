@@ -1,4 +1,5 @@
 'use strict';
+
 const SUPABASE_URL = 'https://cqikjyakfnkrxlrfvxgp.supabase.co';
 const SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_AM_KftThbhnQuczExuFkuQ_nF4c4pU-';
 
@@ -66,6 +67,66 @@ function load(){
   (window.SEED_TOPICS||[]).forEach(t=>{if(!topics.some(x=>x.id===t.id))topics.push(t)});
   (window.SEED_WORDS||[]).forEach(w=>{if(!words.some(x=>x.id===w.id))words.push({...w})});
   words=words.map(normalizeWord); save();
+}
+async function loadFromSupabase(){
+  try{
+    const [
+      topicsResult,
+      schoolResult,
+      phrasesResult,
+      wordsResult
+    ] = await Promise.all([
+      supabaseClient.from('topics').select('*'),
+      supabaseClient.from('school').select('*'),
+      supabaseClient.from('phrases').select('*'),
+      supabaseClient.from('words').select('*')
+    ]);
+
+    const error =
+      topicsResult.error ||
+      schoolResult.error ||
+      phrasesResult.error ||
+      wordsResult.error;
+
+    if(error) throw error;
+
+    topics = topicsResult.data || [];
+    school = (schoolResult.data || []).map(x => ({
+      ...x,
+      parentId: x.parentId ?? null
+    }));
+
+    phrases = phrasesResult.data || [];
+
+    words = (wordsResult.data || []).map(w => {
+      let tags = w.tags;
+
+      if(typeof tags === 'string'){
+        try{
+          const parsed = JSON.parse(tags);
+          if(Array.isArray(parsed)) tags = parsed;
+        }catch{}
+      }
+
+      return normalizeWord({
+        ...w,
+        tags
+      });
+    });
+
+    console.log(
+      'Supabase loaded:',
+      topics.length,
+      school.length,
+      phrases.length,
+      words.length
+    );
+
+    return true;
+  }catch(error){
+    console.error('Supabase load failed:', error);
+    return false;
+  }
 }
 function save(){localStorage.setItem(KEYS.topics,JSON.stringify(topics));localStorage.setItem(KEYS.school,JSON.stringify(school));localStorage.setItem(KEYS.phrases,JSON.stringify(phrases));localStorage.setItem(KEYS.words,JSON.stringify(words))}
 function listFor(c){return c==='school'?school:c==='phrases'?phrases:topics}
@@ -787,6 +848,14 @@ async function forceUpdate(){
     alert('Не вдалося автоматично оновити застосунок. Закрий його повністю та відкрий сайт ще раз. Твої слова не видалено.');
   }
 }
-load();render();
+(async()=>{
+  const cloudLoaded = await loadFromSupabase();
+
+  if(!cloudLoaded){
+    load();
+  }
+
+  render();
+})();
 if('serviceWorker'in navigator){window.addEventListener('load',()=>navigator.serviceWorker.register('./sw.js?v=4.7.14').catch(console.error))}
 window.addEventListener('load',()=>{if(sessionStorage.getItem('koreanAppUpdated')==='1'){sessionStorage.removeItem('koreanAppUpdated');setTimeout(()=>alert('Застосунок оновлено до останньої доступної версії.'),250)}});
