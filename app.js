@@ -113,6 +113,9 @@ async function loadFromSupabase(){
         tags
       });
     });
+    lastCloudWords = new Map(
+  words.map(w => [w.id, wordCloudSignature(w)])
+);
 
     console.log(
       'Supabase loaded:',
@@ -128,7 +131,98 @@ async function loadFromSupabase(){
     return false;
   }
 }
-function save(){localStorage.setItem(KEYS.topics,JSON.stringify(topics));localStorage.setItem(KEYS.school,JSON.stringify(school));localStorage.setItem(KEYS.phrases,JSON.stringify(phrases));localStorage.setItem(KEYS.words,JSON.stringify(words))}
+let lastCloudWords = new Map();
+let cloudWordsSaveTimer = null;
+let cloudWordsSaving = false;
+
+function wordForCloud(w){
+  return {
+    id: w.id,
+    collection: w.collection,
+    topicId: w.topicId,
+    korean: w.korean,
+    ukrainian: w.ukrainian,
+    english: w.english || '',
+    partOfSpeech: w.partOfSpeech || 'Інше',
+    exampleKo: w.exampleKo || '',
+    exampleUk: w.exampleUk || '',
+    notes: w.notes || '',
+    tags: JSON.stringify(normalizeTags(w.tags)),
+    favorite: Boolean(w.favorite),
+    level: Number(w.level) || 0,
+    learningProgress: Number(w.learningProgress) || 0,
+    manualStatus: w.manualStatus ?? null,
+    mistakes: Number(w.mistakes) || 0,
+    correct: Number(w.correct) || 0,
+    lastReview: w.lastReview || '',
+    createdAt: w.createdAt || new Date().toISOString()
+  };
+}
+
+function wordCloudSignature(w){
+  return JSON.stringify(wordForCloud(w));
+}
+
+async function syncWordsToSupabase(){
+  if(cloudWordsSaving) return;
+  cloudWordsSaving = true;
+
+  try{
+    const currentIds = new Set(words.map(w => w.id));
+    const changed = [];
+
+    for(const w of words){
+      const signature = wordCloudSignature(w);
+
+      if(lastCloudWords.get(w.id) !== signature){
+        changed.push(wordForCloud(w));
+      }
+    }
+
+    const deletedIds = [...lastCloudWords.keys()]
+      .filter(id => !currentIds.has(id));
+
+    if(changed.length){
+      const { error } = await supabaseClient
+        .from('words')
+        .upsert(changed, { onConflict: 'id' });
+
+      if(error) throw error;
+    }
+
+    if(deletedIds.length){
+      const { error } = await supabaseClient
+        .from('words')
+        .delete()
+        .in('id', deletedIds);
+
+      if(error) throw error;
+    }
+
+    lastCloudWords = new Map(
+      words.map(w => [w.id, wordCloudSignature(w)])
+    );
+
+  }catch(error){
+    console.error('Supabase words save failed:', error);
+  }finally{
+    cloudWordsSaving = false;
+  }
+}
+
+function scheduleWordsCloudSave(){
+  clearTimeout(cloudWordsSaveTimer);
+  cloudWordsSaveTimer = setTimeout(syncWordsToSupabase, 300);
+}
+
+function save(){
+  localStorage.setItem(KEYS.topics, JSON.stringify(topics));
+  localStorage.setItem(KEYS.school, JSON.stringify(school));
+  localStorage.setItem(KEYS.phrases, JSON.stringify(phrases));
+  localStorage.setItem(KEYS.words, JSON.stringify(words));
+
+  scheduleWordsCloudSave();
+}
 function listFor(c){return c==='school'?school:c==='phrases'?phrases:topics}
 function nameFor(id,c){return listFor(c).find(x=>x.id===id)?.name||'Без теми'}
 function schoolChildren(parentId=null){return school.filter(x=>(x.parentId??null)===(parentId??null))}
