@@ -7,6 +7,41 @@ const supabaseClient = window.supabase.createClient(
   SUPABASE_URL,
   SUPABASE_PUBLISHABLE_KEY
 );
+async function signInToSupabase(email, password){
+  const { data, error } = await supabaseClient.auth.signInWithPassword({
+    email,
+    password
+  });
+
+  if(error) throw error;
+  return data;
+}
+async function updateAuthUI(){
+  const { data } = await supabaseClient.auth.getSession();
+  const session = data?.session || null;
+
+  const status = document.getElementById('authStatus');
+  const form = document.getElementById('loginForm');
+  const logout = document.getElementById('logoutButton');
+
+  if(!status || !form || !logout) return;
+
+  if(session){
+    status.textContent = `✅ Увійдено: ${session.user.email}`;
+    form.style.display = 'none';
+    logout.style.display = '';
+  }else{
+    status.textContent = '🔐 Увійди, щоб редагувати дані';
+    form.style.display = '';
+    logout.style.display = 'none';
+  }
+}
+
+async function logoutFromSupabase(){
+  const { error } = await supabaseClient.auth.signOut();
+  if(error) throw error;
+  await updateAuthUI();
+}
 const KEYS={topics:'kf3_topics',school:'kf3_school',phrases:'kf3_phrases',words:'kf3_words'};
 const app=document.getElementById('app');
 let topics=[],school=[],phrases=[],words=[];
@@ -321,7 +356,52 @@ function setView(v){if(v!=='study'||state.mode!=='speaking'){stopSpeakingRecogni
 function shell(title,body,back){return `<section class="panel"><div class="top">${back?`<button class="back" data-act="${back}">← Назад</button>`:'<span></span>'}<h2>${esc(title)}</h2><button class="home-mini" data-act="home" type="button" aria-label="На головну" title="На головну">🏠</button></div>${body}</section>`}
 function render(){try{app.innerHTML=(views[state.view]||views.home)();bind();setupScrollUi();if(state.view==='study'&&state.mode==='speaking')setTimeout(startSpeaking,250)}catch(e){console.error(e);app.innerHTML=`<section class="panel"><h2>Сталася помилка</h2><p>${esc(e.message)}</p><button class="btn primary" data-act="home">На головну</button></section>`;bind()}}
 const views={
-  home:()=>`<section class="panel"><div class="home"><button class="btn primary large wide" data-act="start">🎴 Start</button><button class="btn secondary large" data-act="school">🎓 School</button><button class="btn secondary large" data-act="topics">📚 Теми</button><button class="btn secondary large" data-act="phrases">💬 Фрази</button><button class="btn secondary large" data-act="library">📖 Усі слова</button><button class="btn secondary large" data-act="favorites">⭐ Обране</button><button class="btn secondary large" data-act="mistakes">❌ Повторити помилки</button><button class="btn secondary large" data-act="stats">📊 Статистика</button><button class="btn secondary large" data-act="data-tools">💾 Резервна копія</button><button class="btn secondary large" data-act="force-update">🔄 Оновити застосунок</button></div></section>`,
+  home:()=>`
+  <section class="panel">
+    <div class="home">
+      <div id="authBox" class="notice">
+        <div id="authStatus">🔐 Перевіряю вхід...</div>
+
+        <form id="loginForm" class="form" style="display:none; margin-top:12px">
+          <label>
+            Email
+            <input id="loginEmail" type="email" required autocomplete="email">
+          </label>
+
+          <label>
+            Пароль
+            <input id="loginPassword" type="password" required autocomplete="current-password">
+          </label>
+
+          <button class="btn primary" type="submit">
+            Увійти
+          </button>
+        </form>
+
+        <button
+          id="logoutButton"
+          class="btn secondary"
+          data-act="logout"
+          type="button"
+          style="display:none; margin-top:10px"
+        >
+          Вийти
+        </button>
+      </div>
+
+      <button class="btn primary large wide" data-act="start">🎴 Start</button>
+      <button class="btn secondary large" data-act="school">🎓 School</button>
+      <button class="btn secondary large" data-act="topics">📚 Теми</button>
+      <button class="btn secondary large" data-act="phrases">💬 Фрази</button>
+      <button class="btn secondary large" data-act="library">📖 Усі слова</button>
+      <button class="btn secondary large" data-act="favorites">⭐ Обране</button>
+      <button class="btn secondary large" data-act="mistakes">❌ Повторити помилки</button>
+      <button class="btn secondary large" data-act="stats">📊 Статистика</button>
+      <button class="btn secondary large" data-act="data-tools">💾 Резервна копія</button>
+      <button class="btn secondary large" data-act="force-update">🔄 Оновити застосунок</button>
+    </div>
+  </section>
+`,
   start:()=>shell('Start',`<div class="modegrid"><button class="mode" data-act="start-all">🎯 Відкрити тренування<br><small>${words.length} слів доступно</small></button></div>`,'home'),
   topics:()=>collectionView('topics','Теми'), school:()=>collectionView('school','School'), phrases:()=>collectionView('phrases','Фрази'),
   detail:()=>detailView(),
@@ -430,7 +510,28 @@ function bindLiveSearch(input,update){
     timer=setTimeout(()=>update(value),120);
   });
 }
-function bind(){app.onclick=handleClick;setupTopicSorting();setupWordMenuDismiss();
+function bind(){app.onclick=handleClick; const loginForm = document.getElementById('loginForm');
+
+if(loginForm){
+  loginForm.onsubmit = async e => {
+    e.preventDefault();
+
+    const email = document.getElementById('loginEmail')?.value.trim();
+    const password = document.getElementById('loginPassword')?.value || '';
+
+    try{
+      await signInToSupabase(email, password);
+      await updateAuthUI();
+      alert('Вхід виконано.');
+    }catch(error){
+      console.error(error);
+      alert('Не вдалося увійти: ' + error.message);
+    }
+  };
+
+  updateAuthUI();
+}
+  setupTopicSorting();setupWordMenuDismiss();
   bindLiveSearch($('#search'),updateLibrarySearchResults);
   bindLiveSearch($('#detailSearch'),updateDetailSearchResults);
   const wf=$('#wordForm');if(wf)wf.onsubmit=saveWord;const ko=$('#ko'),uk=$('#uk');if(ko){let timer;const schedule=()=>{clearTimeout(timer);checkDuplicateWord();inferPartOfSpeech();if(ko.value.trim())timer=setTimeout(()=>autoFillWord(false),650)};ko.addEventListener('input',schedule);ko.addEventListener('blur',()=>{checkDuplicateWord();inferPartOfSpeech();if(ko.value.trim())autoFillWord(false)});if(uk)uk.addEventListener('input',checkDuplicateWord);checkDuplicateWord()}const tf=$('#topicForm');if(tf)tf.onsubmit=saveTopic;const col=$('#collection');if(col)col.onchange=()=>{state.collection=col.value;$('#topicSelect').innerHTML=topicOptions(col.value,'');inferPartOfSpeech()};const fcol=$('#filterCollection');if(fcol)fcol.onchange=()=>{state.libraryCollection=fcol.value;state.libraryTopic='';filterLibrary()};const ftopic=$('#filterTopic');if(ftopic)ftopic.onchange=filterLibrary;const fl=$('#filterLevel');if(fl)fl.onchange=filterLibrary;const ft=$('#filterTag');if(ft)ft.onchange=filterLibrary;const sort=$('#sortWords');if(sort)sort.onchange=filterLibrary;const wf2=$('#writeForm');if(wf2)wf2.onsubmit=checkWritten;const imp=$('#importFile');if(imp)imp.onchange=importJson;const oc=$('#ocrCollection');if(oc)oc.onchange=()=>{$('#ocrTopic').innerHTML=topicOptions(oc.value,'')};const cam=$('#ocrCamera'),gal=$('#ocrGallery'),fileName=$('#ocrFileName');const chooseOcrFile=(source,other)=>{if(!source?.files?.[0])return;if(other)other.value='';if(fileName)fileName.textContent=`Вибрано: ${source.files[0].name}`};if(cam)cam.onchange=()=>chooseOcrFile(cam,gal);if(gal)gal.onchange=()=>chooseOcrFile(gal,cam)}
@@ -504,6 +605,12 @@ function setManualWordStatus(w,status){
 function handleClick(e){const flash=e.target.closest('#flash');if(flash){flash.classList.toggle('flipped');return}const b=e.target.closest('button');const card=e.target.closest('.word[data-word-id]');if(state.bulkMove&&card){const id=card.dataset.wordId;state.selectedWordIds=state.selectedWordIds.includes(id)?state.selectedWordIds.filter(x=>x!==id):[...state.selectedWordIds,id];render();return}if(!b){if(card){const id=card.dataset.wordId;state.expandedWordId=state.expandedWordId===id?null:id;render()}return}const a=b.dataset.act;
   if(a==='home'){state.bulkMove=false;state.selectedWordIds=[];state.expandedWordId=null;setView('home');} else if(a==='start')openModes(words,'Усі слова','home',false); else if(a==='topics')setView('topics'); else if(a==='school'){state.schoolParentId=null;setView('school')} else if(a==='phrases')setView('phrases'); else if(a==='library')setView('library'); else if(a==='stats')setView('stats'); else if(a==='data-tools')setView('dataTools');
   else if(a==='start-all')openModes(words,'Усі слова','home',false); else if(a==='favorites')openModes(words.filter(w=>w.favorite),'Обране','home',false); else if(a==='mistakes')setView('mistakesLibrary');
+  else if(a==='logout'){
+  logoutFromSupabase().catch(error=>{
+    console.error(error);
+    alert('Не вдалося вийти: ' + error.message);
+  });
+}
   else if(a==='open-topic'){state.collection=b.dataset.c;state.topicId=b.dataset.id;state.detailSearch='';setView('detail')} else if(a==='quick-add'){state.collection=b.dataset.c;state.topicId=b.dataset.id;state.editId=null;state.returnView=state.collection==='school'?'school':state.collection==='phrases'?'phrases':'topics';setView('wordForm')}
   else if(a==='new-topic'){state.collection=b.dataset.c;state.returnView=state.collection==='school'?'school':state.collection==='phrases'?'phrases':'topics';state.editTopicId=null;setView('topicForm')} else if(a==='new-subtopic'){state.collection='school';state.schoolParentId=state.topicId;state.returnTopicId=state.topicId;state.returnView='detail';state.editTopicId=null;setView('topicForm')} else if(a==='edit-topic'){state.collection=b.dataset.c;state.returnView=state.view;state.returnTopicId=state.topicId;state.editTopicId=b.dataset.id;setView('topicForm')} else if(a==='move-topic')moveTopic(b.dataset.c,b.dataset.id,b.dataset.dir); else if(a==='promote-folder')promoteSchoolFolder(b.dataset.id); else if(a==='delete-folder')deleteSchoolFolder(b.dataset.id);
   else if(a==='detail-parent'){const node=school.find(x=>x.id===state.topicId);if(node?.parentId){state.topicId=node.parentId;state.schoolParentId=school.find(x=>x.id===state.topicId)?.parentId??null;state.detailSearch='';setView('detail')}else{state.schoolParentId=null;setView('school')}} else if(a==='back-collection'){if(state.collection==='school'){const node=school.find(x=>x.id===state.topicId);state.schoolParentId=node?.parentId??null;setView('school')}else setView(state.collection==='phrases'?'phrases':'topics')} else if(a==='school-up'){const node=school.find(x=>x.id===state.schoolParentId);state.schoolParentId=node?.parentId??null;setView('school')} else if(a==='study-topic'){const source=state.collection==='school'?schoolWordsFor(state.topicId):words.filter(w=>w.collection===state.collection&&w.topicId===state.topicId);openModes(source,nameFor(state.topicId,state.collection),'detail',false)} else if(a==='study-topic-mistakes'){const source=(state.collection==='school'?schoolWordsFor(state.topicId):words.filter(w=>w.collection===state.collection&&w.topicId===state.topicId)).filter(w=>w.mistakes>0);openModes(source,`Помилки · ${nameFor(state.topicId,state.collection)}`,'detail',true)} else if(a==='add-word-topic'){state.editId=null;state.returnView='detail';setView('wordForm')}
