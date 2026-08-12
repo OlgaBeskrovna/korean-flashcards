@@ -1,4 +1,11 @@
 'use strict';
+const SUPABASE_URL = 'https://cqikjyakfnkrxlrfvxgp.supabase.co';
+const SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_AM_KftThbhnQuczExuFkuQ_nF4c4pU-';
+
+const supabaseClient = window.supabase.createClient(
+  SUPABASE_URL,
+  SUPABASE_PUBLISHABLE_KEY
+);
 const KEYS={topics:'kf3_topics',school:'kf3_school',phrases:'kf3_phrases',words:'kf3_words'};
 const app=document.getElementById('app');
 let topics=[],school=[],phrases=[],words=[];
