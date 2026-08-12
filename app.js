@@ -116,6 +116,9 @@ async function loadFromSupabase(){
     lastCloudWords = new Map(
   words.map(w => [w.id, wordCloudSignature(w)])
 );
+    lastCloudTopics = new Map(
+  topics.map(t => [t.id, topicCloudSignature(t)])
+);
 
     console.log(
       'Supabase loaded:',
@@ -134,7 +137,71 @@ async function loadFromSupabase(){
 let lastCloudWords = new Map();
 let cloudWordsSaveTimer = null;
 let cloudWordsSaving = false;
+let lastCloudTopics = new Map();
+let cloudTopicsSaveTimer = null;
+let cloudTopicsSaving = false;
 
+function topicCloudSignature(t){
+  return JSON.stringify({
+    id: t.id,
+    name: t.name
+  });
+}
+
+async function syncTopicsToSupabase(){
+  if(cloudTopicsSaving) return;
+  cloudTopicsSaving = true;
+
+  try{
+    const currentIds = new Set(topics.map(t => t.id));
+    const changed = [];
+
+    for(const t of topics){
+      const signature = topicCloudSignature(t);
+
+      if(lastCloudTopics.get(t.id) !== signature){
+        changed.push({
+          id: t.id,
+          name: t.name
+        });
+      }
+    }
+
+    const deletedIds = [...lastCloudTopics.keys()]
+      .filter(id => !currentIds.has(id));
+
+    if(changed.length){
+      const { error } = await supabaseClient
+        .from('topics')
+        .upsert(changed, { onConflict: 'id' });
+
+      if(error) throw error;
+    }
+
+    if(deletedIds.length){
+      const { error } = await supabaseClient
+        .from('topics')
+        .delete()
+        .in('id', deletedIds);
+
+      if(error) throw error;
+    }
+
+    lastCloudTopics = new Map(
+      topics.map(t => [t.id, topicCloudSignature(t)])
+    );
+
+  }catch(error){
+    console.error('Supabase topics save failed:', error);
+  }finally{
+    cloudTopicsSaving = false;
+  }
+}
+
+function scheduleTopicsCloudSave(){
+  clearTimeout(cloudTopicsSaveTimer);
+  cloudTopicsSaveTimer = setTimeout(syncTopicsToSupabase, 300);
+}
 function wordForCloud(w){
   return {
     id: w.id,
@@ -222,6 +289,7 @@ function save(){
   localStorage.setItem(KEYS.words, JSON.stringify(words));
 
   scheduleWordsCloudSave();
+  scheduleTopicsCloudSave();
 }
 function listFor(c){return c==='school'?school:c==='phrases'?phrases:topics}
 function nameFor(id,c){return listFor(c).find(x=>x.id===id)?.name||'Без теми'}
