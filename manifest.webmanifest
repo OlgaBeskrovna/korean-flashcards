@@ -1,0 +1,15 @@
+{
+  "name": "Korean Flashcards",
+  "short_name": "Flashcards",
+  "description": "Твій особистий тренажер корейської",
+  "id": "./",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "display_override": ["standalone"],
+  "background_color": "#f7f3ff",
+  "theme_color": "#6c4ed9",
+  "icons": [
+    {"src":"icon-purple.png","sizes":"512x512","type":"image/png","purpose":"any maskable"}
+  ]
+}
