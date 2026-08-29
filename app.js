@@ -188,38 +188,17 @@ function socialAvatar(profile){
 }
 async function loadSocialData(){
   if(!currentUserId)return;
-  socialFriends=[];socialRequests=[];
-
-  const {data:p,error:pe}=await supabaseClient.from('profiles').select('*').eq('user_id',currentUserId).maybeSingle();
-  if(pe)console.warn('Profile load failed',pe); else socialProfile=p||socialProfile;
-
-  const {data:f,error:fe}=await supabaseClient.rpc('get_friends');
-  if(fe)console.warn('Friends load failed',fe); else socialFriends=f||[];
-
-  // Prefer the RPC, but fall back to a direct RLS-protected query. This keeps
-  // incoming requests visible even if PostgREST still has an older function
-  // definition cached after the migration.
-  const {data:r,error:re}=await supabaseClient.rpc('get_friend_requests');
-  if(!re){
-    socialRequests=r||[];
-    return;
-  }
-  console.warn('Friend requests RPC failed, using direct query',re);
-  const {data:raw,error:qe}=await supabaseClient
-    .from('friend_requests')
-    .select('id,sender_id,created_at')
-    .eq('recipient_id',currentUserId)
-    .eq('status','pending')
-    .order('created_at',{ascending:false});
-  if(qe){console.error('Friend requests load failed',qe);return}
-  const senderIds=[...new Set((raw||[]).map(x=>x.sender_id).filter(Boolean))];
-  let profiles=[];
-  if(senderIds.length){
-    const {data:pd,error:pde}=await supabaseClient.from('profiles').select('user_id,nickname,avatar_value').in('user_id',senderIds);
-    if(pde)console.warn('Friend request profiles load failed',pde); else profiles=pd||[];
-  }
-  const byId=new Map(profiles.map(x=>[x.user_id,x]));
-  socialRequests=(raw||[]).map(x=>({request_id:x.id,user_id:x.sender_id,nickname:byId.get(x.sender_id)?.nickname||'Користувач',avatar_value:byId.get(x.sender_id)?.avatar_value||'avatar-1.png'}));
+  try{
+    const {error:ensureError}=await supabaseClient.rpc('ensure_my_profile');
+    if(ensureError)throw ensureError;
+    const [{data:p,error:pe},{data:f,error:fe},{data:r,error:re}]=await Promise.all([
+      supabaseClient.from('profiles').select('*').eq('user_id',currentUserId).single(),
+      supabaseClient.rpc('get_friends'),
+      supabaseClient.rpc('get_friend_requests')
+    ]);
+    if(pe)throw pe;if(fe)throw fe;if(re)throw re;
+    socialProfile=p;socialFriends=f||[];socialRequests=r||[];
+  }catch(e){console.error('Social data load failed',e)}
 }
 async function syncAvatarToProfile(){
   if(!currentUserId)return;
@@ -241,7 +220,7 @@ async function addFriendDialog(){
   if(error){alert(error.message);return}alert('Запит у друзі надіслано.');await loadSocialData();openProfileModal();
 }
 async function respondFriendRequest(id,accept){
-  const {error}=await supabaseClient.rpc('respond_friend_request',{request_id:id,accept_request:accept});
+  const {error}=await supabaseClient.rpc('respond_friend_request_v2',{p_request_id:id,p_accept:accept});
   if(error){alert(error.message);return}await loadSocialData();openProfileModal();
 }
 async function removeFriend(id){
