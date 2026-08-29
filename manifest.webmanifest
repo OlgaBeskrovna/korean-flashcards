@@ -1,0 +1,20 @@
+{
+  "name": "Korean PRO",
+  "short_name": "Korean PRO",
+  "description": "Твій особистий тренажер корейської",
+  "id": "./",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "display_override": ["standalone"],
+  "background_color": "#f7f3ff",
+  "theme_color": "#6c4ed9",
+  "icons": [
+    {
+      "src": "https://cqikjyakfnkrxlrfvxgp.supabase.co/storage/v1/object/public/app-assets/icon-purple.png?v=5.0.8",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
