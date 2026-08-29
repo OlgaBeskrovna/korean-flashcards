@@ -1,0 +1,82 @@
+
+:root{
+  --purple:#6b48d9;
+  --purple2:#825be7;
+  --ink:#312b4a;
+  --muted:#827c8e;
+  --line:#e8e0f3;
+  --paper:#fffdfa;
+}
+*{box-sizing:border-box}
+html,body{margin:0;min-height:100%;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:var(--ink)}
+body{
+  min-height:100vh;
+  background:
+    radial-gradient(circle at 20% 0%,#fff7f5 0,transparent 42%),
+    linear-gradient(180deg,#f8f3ff 0%,#fffaf7 100%);
+}
+.login-shell{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:0}
+.login-card{
+  width:min(520px,100%);
+  min-height:100vh;
+  background:rgba(255,253,250,.96);
+  overflow:hidden;
+  position:relative;
+}
+.login-hero{
+  height:min(42vh,390px);
+  min-height:270px;
+  overflow:hidden;
+  position:relative;
+  background:#f7efe9;
+}
+.login-hero:after{
+  content:"";
+  position:absolute;inset:auto 0 0;height:42%;
+  background:linear-gradient(transparent,var(--paper));
+}
+.login-hero img{
+  width:100%;height:100%;object-fit:cover;object-position:center 48%;display:block;
+  filter:saturate(.92) contrast(.98);
+}
+.login-content{padding:0 24px 34px;margin-top:-34px;position:relative;z-index:2}
+.brand{text-align:center;margin-bottom:22px}
+.brand-ko{font-size:39px;font-weight:900;letter-spacing:-1px}
+.brand h1{font-size:30px;margin:0;font-weight:800}
+.brand p{margin:8px 0 0;color:var(--muted)}
+button,input{font:inherit}
+.main-action{
+  width:100%;border:0;border-radius:17px;padding:16px 18px;margin:9px 0;
+  background:linear-gradient(135deg,var(--purple),var(--purple2));
+  color:white;font-weight:800;font-size:17px;box-shadow:0 10px 24px rgba(107,72,217,.18);
+}
+.main-action.outline{
+  background:rgba(255,255,255,.75);color:var(--purple);
+  border:1.5px solid #bdaaf3;box-shadow:none;
+}
+.auth-view{padding-top:2px}
+.auth-view h2{text-align:center;font-size:28px;margin:4px 0}
+.subtitle{text-align:center;color:var(--muted);margin:0 0 18px;line-height:1.4}
+form label{display:block;font-size:14px;font-weight:700;margin:12px 0}
+input{
+  display:block;width:100%;margin-top:7px;padding:15px 14px;border-radius:15px;
+  border:1px solid var(--line);background:#fff;color:var(--ink);outline:none;
+}
+input:focus{border-color:#a88bed;box-shadow:0 0 0 3px rgba(107,72,217,.10)}
+.back-link,.text-button{
+  border:0;background:transparent;color:var(--purple);padding:5px 0;font-weight:700;
+}
+.back-link{color:var(--ink);font-size:16px;margin-bottom:8px}
+.text-button{margin-top:0}
+.little-ko{text-align:center;color:#77717e;margin:26px 0 8px}
+.little-ko span{display:block;font-size:13px;margin-top:3px}
+.message{
+  border-radius:14px;padding:12px 14px;margin-top:14px;background:#f1ecff;
+  color:#514178;font-size:14px;line-height:1.45
+}
+.message.error{background:#fff0f1;color:#8b3441}
+.version{text-align:center;margin-top:22px;color:#aaa3ae;font-size:12px}
+@media(min-width:700px){
+  .login-shell{padding:24px}
+  .login-card{min-height:auto;border-radius:30px;box-shadow:0 30px 80px rgba(55,40,88,.14)}
+}
